@@ -1,0 +1,11 @@
+{
+  "serial": 3,
+  "created": "2026-11-22T18:14:37.813Z",
+  "plugins": [
+    {
+      "id": "ddownload",
+      "file": "ddownload.js",
+      "sha256": "d122172e4946b8d3cc10b6f624ab5b9b268a78e58830dad7d459143137dfa93a"
+    }
+  ]
+}
