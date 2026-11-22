@@ -88,3 +88,52 @@ export function check(cfg: XfsConfig, url: string): CheckResult {
   const res = pullr.http.get(`https://${cfg.domain}/${id}`);
   return parseFilePage(cfg, res.status, res.body);
 }
+
+export interface HtmlForm {
+  action: string;
+  method: string;
+  fields: Record<string, string>;
+}
+
+function attr(tag: string, name: string): string | undefined {
+  const m = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, "i").exec(tag);
+  return m ? decodeEntities(m[1] ?? m[2] ?? m[3] ?? "") : undefined;
+}
+
+/** Alle Formulare einer Seite mit ihren Feldern (input mit name). */
+export function parseForms(html: string): HtmlForm[] {
+  const forms: HtmlForm[] = [];
+  const re = /<form\b([^>]*)>([\s\S]*?)<\/form>/gi;
+  for (let m = re.exec(html); m; m = re.exec(html)) {
+    const fields: Record<string, string> = {};
+    const inputs = /<input\b[^>]*>/gi;
+    for (let i = inputs.exec(m[2]); i; i = inputs.exec(m[2])) {
+      const name = attr(i[0], "name");
+      const type = (attr(i[0], "type") ?? "text").toLowerCase();
+      if (!name || ((type === "checkbox" || type === "radio") && !/\bchecked\b/i.test(i[0]))) continue;
+      fields[name] = attr(i[0], "value") ?? "";
+    }
+    forms.push({ action: attr(m[1], "action") ?? "", method: (attr(m[1], "method") ?? "GET").toUpperCase(), fields });
+  }
+  return forms;
+}
+
+/** Das XFS-Formular für einen Schritt, z. B. op=download2. */
+export function findForm(html: string, op: string): HtmlForm | undefined {
+  return parseForms(html).find((f) => f.fields.op === op);
+}
+
+/** Header-Wert für mehrere Cookies aus Set-Cookie-Headern und einer bestehenden Sitzung. */
+export function mergeCookies(session: string | null | undefined, setCookies: string[]): string {
+  const jar = new Map<string, string>();
+  for (const part of (session ?? "").split(";")) {
+    const [k, ...v] = part.trim().split("=");
+    if (k) jar.set(k, v.join("="));
+  }
+  for (const c of setCookies) {
+    const [pair] = c.split(";");
+    const [k, ...v] = pair.trim().split("=");
+    if (k) jar.set(k, v.join("="));
+  }
+  return [...jar].map(([k, v]) => `${k}=${v}`).join("; ");
+}
