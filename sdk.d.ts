@@ -74,6 +74,16 @@ interface ResolveResult {
   fileName?: string;
 }
 
+/**
+ * Ergebnis des Aufschlüsselns eines Ordner-Links. Die Links ersetzen ihn im Linkgrabber und
+ * werden danach selbst geprüft; Links ins lokale Netz verwirft pullR.
+ */
+interface CrawlResult {
+  links: string[];
+  /** Name für das Paket, z. B. der Ordnername. Sonst bleibt der bisherige Paketname. */
+  packageName?: string;
+}
+
 /** Anmeldung im Browser-Fenster für Formulare mit Captcha-Schutz. */
 interface BrowserLoginConfig {
   url: string;
@@ -90,12 +100,20 @@ interface HosterPlugin {
   name: string;
   /** Reguläre Ausdrücke (Rust-Regex-Syntax) für die Links dieses Hosters. */
   patterns: string[];
+  /**
+   * Reguläre Ausdrücke für Ordner-Links (Ordner, Playlists, Linkschutz-Seiten). Solche Adressen
+   * werden nicht geprüft, sondern mit `crawl` aufgeschlüsselt. Ohne `crawl` lädt das Plugin nicht.
+   */
+  crawlPatterns?: string[];
   maxParallel?: number;
   /** Ohne Account kann das Plugin nicht laden. */
   accountRequired?: boolean;
   browserLogin?: BrowserLoginConfig;
-  check(url: string): CheckResult;
+  /** Für Plugins, die nur Ordner-Links aufschlüsseln (z. B. Linkschutz), nicht nötig. */
+  check?(url: string): CheckResult;
   account?(account: AccountInput): AccountResult;
+  /** Schlüsselt einen Ordner-Link auf. `pullr.offline()`, wenn es den Ordner nicht mehr gibt. */
+  crawl?(url: string): CrawlResult;
   /** Löst einen Link in eine direkt ladbare Anfrage auf. */
   resolve?(url: string, account: AccountInput | null): ResolveResult;
 }
